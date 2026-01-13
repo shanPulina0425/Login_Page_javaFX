@@ -1,6 +1,7 @@
 package Controller;
 
 import DB_Connection.DBConnection;
+import Model.UserDTO;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -84,52 +85,43 @@ public class LoginPageController implements Initializable {
     @FXML
     void handleSignIn(ActionEvent event) {
 
-        if (signInEmailTxt == null || signInPasswordTxt == null) {
-            showAlert(Alert.AlertType.ERROR, "Initialization Error", "Sign-in controls are not initialized.");
+        if (signInEmailTxt.getText().trim().isEmpty() ||
+                signInPasswordTxt.getText().trim().isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "Incomplete", "Please enter email and password.");
             return;
         }
 
-        String email = signInEmailTxt.getText() == null ? "" : signInEmailTxt.getText().trim();
-        String password = signInPasswordTxt.getText() == null ? "" : signInPasswordTxt.getText();
+        String email = signInEmailTxt.getText().trim();
+        String password = signInPasswordTxt.getText();
 
-        if (email.isEmpty() || password.isEmpty()) {
-            showAlert(Alert.AlertType.WARNING, "Incomplete", "Please fill all fields.");
-            return;
-        }
+        try {
 
-        String sql = "SELECT password FROM login_details WHERE email = ?";
+            UserDTO user = authenticateUser(email, password);
 
-        try (Connection connection = DBConnection.getInstance().getConnection()) {
-            if (connection == null) {
-                showAlert(Alert.AlertType.ERROR, "Database Error", "Failed to obtain database connection.");
-                return;
+            if (user != null) {
+                showAlert(Alert.AlertType.INFORMATION, "Success",
+                        "Welcome " + user.getFullName() + "!\nLogin successful.");
+
+
+                loginPane.setVisible(false);
+                dashBoardPane.setVisible(true);
+
+
+                signInEmailTxt.clear();
+                signInPasswordTxt.clear();
+            } else {
+                showAlert(Alert.AlertType.ERROR, "Login Failed",
+                        "Invalid email or password.");
             }
 
-            try (PreparedStatement pst = connection.prepareStatement(sql)) {
-                pst.setString(1, email);
-                try (ResultSet rs = pst.executeQuery()) {
-                    if (rs.next()) {
-                        String dbPassword = rs.getString("password");
-                        if (dbPassword != null && dbPassword.equals(password)) {
-                            showAlert(Alert.AlertType.INFORMATION, "Success", "Sign in successful!");
-                            loginPane.setVisible(false);
-                            dashBoardPane.setVisible(true);
-                        } else {
-                            showAlert(Alert.AlertType.ERROR, "Login Failed", "Invalid email or password.");
-                        }
-                    } else {
-                        showAlert(Alert.AlertType.ERROR, "Not Found", "User not found.");
-                    }
-                }
-            }
         } catch (SQLException e) {
+            showAlert(Alert.AlertType.ERROR, "Database Error",
+                    "Error accessing database: " + e.getMessage());
             e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "Database Error", e.getMessage());
-        } catch (Exception e) {
-            e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "Error", "An unexpected error occurred: " + e.getMessage());
         }
     }
+
+
 
 
 
@@ -149,53 +141,110 @@ public class LoginPageController implements Initializable {
     @FXML
     void handleSignUpBtn(ActionEvent event) {
 
-
-            if (firstNameTxt.getText().isEmpty() || emailTxt.getText().isEmpty()||passwordTxt.getText().isEmpty()||reEnterPasswordTxt.getText().isEmpty()||lastNameTxt.getText().isEmpty()) {
-                showAlert(Alert.AlertType.WARNING, "Incomplete", "Please fill all fields.");
-                return;
-            }
-
-
+        String firstName = firstNameTxt.getText().trim();
+        String lastName = lastNameTxt.getText().trim();
+        String email = emailTxt.getText().trim();
+        String password = passwordTxt.getText();
+        String rePassword = reEnterPasswordTxt.getText();
 
 
-        try {
-            Connection con = DBConnection.getInstance().getConnection();
-
-            String sql1 = "INSERT INTO signup_details(name, price) VALUES(?, ?, ?, ?)";
-            String sql2 ="INSERT INTO login_details VALUES(?,?)";
-
-            PreparedStatement pst1 = con.prepareStatement(sql1);
-            PreparedStatement pst2 = con.prepareStatement(sql2);
-
-            pst1.setString(1,firstNameTxt.getText());
-            pst1.setString(2,lastNameTxt.getText());
-            pst1.setString(3,emailTxt.getText());
-            pst1.setString(4,passwordTxt.getText());
-
-            pst2.setString(1,emailTxt.getText());
-            pst2.setString(2,passwordTxt.getText());
-
-            pst1.executeUpdate();
-            pst2.executeUpdate();
-
-            showAlert(Alert.AlertType.INFORMATION, "Success", "Sign up successfully!");
-
-
-
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (firstName.isEmpty() || lastName.isEmpty() || email.isEmpty() ||
+                password.isEmpty() || rePassword.isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "","Please fill all fields.");
+            return;
         }
 
 
+        if (!password.equals(rePassword)) {
+            showAlert(Alert.AlertType.ERROR,"", "Passwords do not match!");
+            reEnterPasswordTxt.clear();
+            return;
+        }
 
 
-        firstNameTxt.clear();
-        lastNameTxt.clear();
-        emailTxt.clear();
-        passwordTxt.clear();
-        reEnterPasswordTxt.clear();
+        if (password.length() < 6) {
+            showAlert(Alert.AlertType.WARNING,"", "Password must be at least 6 characters.");
+            return;
+        }
+
+        Connection conn = null;
+        PreparedStatement pst1 = null;
+        PreparedStatement pst2 = null;
+
+        try {
+            conn = DBConnection.getInstance().getConnection();
 
 
+            conn.setAutoCommit(false);
+
+
+            String checkSql = "SELECT email FROM signup_details WHERE email = ?";
+            try (PreparedStatement checkPst = conn.prepareStatement(checkSql)) {
+                checkPst.setString(1, email);
+                try (ResultSet rs = checkPst.executeQuery()) {
+                    if (rs.next()) {
+                        showAlert(Alert.AlertType.WARNING,"", "Email already registered.");
+                        return;
+                    }
+                }
+            }
+
+
+            String sql1 = "INSERT INTO signup_details(first_name, last_name, email, password) VALUES(?, ?, ?, ?)";
+            pst1 = conn.prepareStatement(sql1);
+            pst1.setString(1, firstName);
+            pst1.setString(2, lastName);
+            pst1.setString(3, email);
+            pst1.setString(4, password);
+            pst1.executeUpdate();
+
+
+            String sql2 = "INSERT INTO login_details(email, password) VALUES(?, ?)";
+            pst2 = conn.prepareStatement(sql2);
+            pst2.setString(1, email);
+            pst2.setString(2, password);
+            pst2.executeUpdate();
+
+
+            conn.commit();
+
+            showAlert(Alert.AlertType.INFORMATION, "Success", "Cashier registered successfully!");
+
+
+
+            firstNameTxt.clear();
+            lastNameTxt.clear();
+            emailTxt.clear();
+            passwordTxt.clear();
+            reEnterPasswordTxt.clear();
+
+
+            signUpPane.setVisible(false);
+            loginPane.setVisible(true);
+
+        } catch (SQLException e) {
+
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (SQLException ex) {
+                    ex.printStackTrace();
+                }
+            }
+            showAlert(Alert.AlertType.ERROR,"", "Registration failed: " + e.getMessage());
+            e.printStackTrace();
+        } finally {
+
+            try {
+                if (pst1 != null) pst1.close();
+                if (pst2 != null) pst2.close();
+                if (conn != null) {
+                    conn.setAutoCommit(true);
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
 
