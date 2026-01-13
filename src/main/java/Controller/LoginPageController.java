@@ -4,6 +4,7 @@ import DB_Connection.DBConnection;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.StackPane;
@@ -79,7 +80,10 @@ public class LoginPageController implements Initializable {
 
     @FXML
     void handleSignIn(ActionEvent event) {
-
+        if (signInEmailTxt.getText().isEmpty() || signInPasswordTxt.getText().isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "Incomplete", "Please fill all fields.");
+            return;
+        }
 
 
 
@@ -97,6 +101,15 @@ public class LoginPageController implements Initializable {
 
     @FXML
     void handleSignUpBtn(ActionEvent event) {
+
+
+            if (firstNameTxt.getText().isEmpty() || emailTxt.getText().isEmpty()||passwordTxt.getText().isEmpty()||reEnterPasswordTxt.getText().isEmpty()||lastNameTxt.getText().isEmpty()) {
+                showAlert(Alert.AlertType.WARNING, "Incomplete", "Please fill all fields.");
+                return;
+            }
+
+
+
 
         try {
             Connection con = DBConnection.getInstance().getConnection();
@@ -124,8 +137,28 @@ public class LoginPageController implements Initializable {
             e.printStackTrace();
         }
 
+        showAlert(Alert.AlertType.INFORMATION, "Success", "Sign up successfully!");
+
+
+        firstNameTxt.clear();
+        lastNameTxt.clear();
+        emailTxt.clear();
+        passwordTxt.clear();
+        reEnterPasswordTxt.clear();
+
 
     }
+
+
+
+    private void showAlert(Alert.AlertType type, String title, String content) {
+        Alert alert = new Alert(type);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(content);
+        alert.showAndWait();
+    }
+
 
 
 }
