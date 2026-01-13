@@ -4,12 +4,12 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
-    public class DBConnection {
+    public class DB_Connection {
 
-        private static DBConnection instance;
+        private static DB_Connection instance;
         private Connection connection;
 
-        private DBConnection() {
+        private DB_Connection() {
 
             String url="jdbc:mysql://localhost:3306/login_details";
             String user="root";
@@ -25,10 +25,10 @@ import java.sql.SQLException;
 
 
         }
-        public static DBConnection getInstance(){
+        public static DB_Connection getInstance(){
 
             if(instance ==null){
-                instance=new DBConnection();
+                instance=new DB_Connection();
 
             }
             return instance;

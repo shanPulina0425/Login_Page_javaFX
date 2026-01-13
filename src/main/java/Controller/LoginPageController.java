@@ -1,7 +1,6 @@
 package Controller;
 
-import DB_Connection.DBConnection;
-import Model.UserDTO;
+import DB_Connection.DB_Connection;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -84,42 +83,48 @@ public class LoginPageController implements Initializable {
 
     @FXML
     void handleSignIn(ActionEvent event) {
-
-        if (signInEmailTxt.getText().trim().isEmpty() ||
-                signInPasswordTxt.getText().trim().isEmpty()) {
-            showAlert(Alert.AlertType.WARNING, "Incomplete", "Please enter email and password.");
-            return;
-        }
-
         String email = signInEmailTxt.getText().trim();
         String password = signInPasswordTxt.getText();
 
-        try {
 
-            UserDTO user = authenticateUser(email, password);
-
-            if (user != null) {
-                showAlert(Alert.AlertType.INFORMATION, "Success",
-                        "Welcome " + user.getFullName() + "!\nLogin successful.");
+        if (email.isEmpty() || password.isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "Incomplete", "Please fill all fields.");
+            return;
+        }
 
 
-                loginPane.setVisible(false);
-                dashBoardPane.setVisible(true);
+        String sql = "SELECT email FROM login_details WHERE email = ? AND password = ?";
+
+        try (Connection conn = DB_Connection.getInstance().getConnection();
+             PreparedStatement pst = conn.prepareStatement(sql)) {
+
+            pst.setString(1, email);
+            pst.setString(2, password);
+
+            try (ResultSet rs = pst.executeQuery()) {
+                if (rs.next()) {
+
+                    showAlert(Alert.AlertType.INFORMATION,"", "Login successful!");
+                    loginPane.setVisible(false);
+                    dashBoardPane.setVisible(true);
 
 
-                signInEmailTxt.clear();
-                signInPasswordTxt.clear();
-            } else {
-                showAlert(Alert.AlertType.ERROR, "Login Failed",
-                        "Invalid email or password.");
+                    signInEmailTxt.clear();
+                    signInPasswordTxt.clear();
+                } else {
+                    showAlert(Alert.AlertType.ERROR,"", "Invalid email or password.");
+                }
             }
 
         } catch (SQLException e) {
-            showAlert(Alert.AlertType.ERROR, "Database Error",
-                    "Error accessing database: " + e.getMessage());
+            showAlert(Alert.AlertType.ERROR,"", "Cannot connect to database.");
+            e.printStackTrace();
+        } catch (Exception e) {
+
             e.printStackTrace();
         }
     }
+
 
 
 
@@ -172,7 +177,7 @@ public class LoginPageController implements Initializable {
         PreparedStatement pst2 = null;
 
         try {
-            conn = DBConnection.getInstance().getConnection();
+            conn = DB_Connection.getInstance().getConnection();
 
 
             conn.setAutoCommit(false);
