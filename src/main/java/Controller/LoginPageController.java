@@ -12,6 +12,8 @@ import javafx.scene.layout.StackPane;
 import java.net.URL;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ResourceBundle;
 
 
@@ -78,18 +80,63 @@ public class LoginPageController implements Initializable {
 
     }
 
+
     @FXML
     void handleSignIn(ActionEvent event) {
-        if (signInEmailTxt.getText().isEmpty() || signInPasswordTxt.getText().isEmpty()) {
+
+        if (signInEmailTxt == null || signInPasswordTxt == null) {
+            showAlert(Alert.AlertType.ERROR, "Initialization Error", "Sign-in controls are not initialized.");
+            return;
+        }
+
+        String email = signInEmailTxt.getText() == null ? "" : signInEmailTxt.getText().trim();
+        String password = signInPasswordTxt.getText() == null ? "" : signInPasswordTxt.getText();
+
+        if (email.isEmpty() || password.isEmpty()) {
             showAlert(Alert.AlertType.WARNING, "Incomplete", "Please fill all fields.");
             return;
         }
 
+        String sql = "SELECT password FROM login_details WHERE email = ?";
 
+        try (Connection connection = DBConnection.getInstance().getConnection()) {
+            if (connection == null) {
+                showAlert(Alert.AlertType.ERROR, "Database Error", "Failed to obtain database connection.");
+                return;
+            }
 
-
-
+            try (PreparedStatement pst = connection.prepareStatement(sql)) {
+                pst.setString(1, email);
+                try (ResultSet rs = pst.executeQuery()) {
+                    if (rs.next()) {
+                        String dbPassword = rs.getString("password");
+                        if (dbPassword != null && dbPassword.equals(password)) {
+                            showAlert(Alert.AlertType.INFORMATION, "Success", "Sign in successful!");
+                            loginPane.setVisible(false);
+                            dashBoardPane.setVisible(true);
+                        } else {
+                            showAlert(Alert.AlertType.ERROR, "Login Failed", "Invalid email or password.");
+                        }
+                    } else {
+                        showAlert(Alert.AlertType.ERROR, "Not Found", "User not found.");
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "Database Error", e.getMessage());
+        } catch (Exception e) {
+            e.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "Error", "An unexpected error occurred: " + e.getMessage());
+        }
     }
+
+
+
+
+
+
+
 
     @FXML
     void handleLoginPageSignUp(ActionEvent event) {
@@ -131,13 +178,15 @@ public class LoginPageController implements Initializable {
             pst1.executeUpdate();
             pst2.executeUpdate();
 
-            System.out.println("");
+            showAlert(Alert.AlertType.INFORMATION, "Success", "Sign up successfully!");
+
+
 
         } catch (Exception e) {
             e.printStackTrace();
         }
 
-        showAlert(Alert.AlertType.INFORMATION, "Success", "Sign up successfully!");
+
 
 
         firstNameTxt.clear();
